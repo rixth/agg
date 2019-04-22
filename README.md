@@ -2,6 +2,8 @@
 
 This repo contains about 100 trivial lines of code (in `test-helper`, and `test.spec`). Neither imports any node libraries, writes to the FS, or anything nefarious. There's a single package dependency, `jest`. You're welcome to verify this -- the code is not obfuscated.
 
+**Please run `npm install` to fetch the dependency needed for this exercise**
+
 # Trade aggregator
 
 Imogat's web client allow traders to enter a currency code (ex. `BTC`) and an amount to trade. We want to generate aggregates for these trades. You are responsible for writing a piece of this pipeline that gets raw event data from an API, aggregates it, then saves it back to the API.
