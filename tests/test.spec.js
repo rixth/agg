@@ -1,64 +1,50 @@
 const { process, runExtensionTests } = require('../your-code');
 const { makeApiStub } = require('./test-helper');
 
-describe('trade processor', () => {
+describe('event aggregator', () => {
   let apiStub;
 
   beforeEach(() => {
     apiStub = makeApiStub()
-      .stub('GET', '/trades', [
-        { instrument: 'BTC', amount: 2 },
-        { instrument: 'BTC', amount: 6 },
-        { instrument: 'ETH', amount: 3 },
-        { instrument: 'DGE', amount: 1 },
+      .stub('GET', '/items', [
+        { name: 'search_changed', id: 1 },
+        { name: 'search_changed', id: 2 },
+        { name: 'search_failed', id: 3 },
+        { name: 'foobar', id: 4 }
       ])
-      .stub('POST', '/volume')
-      .stub('POST', '/invalid');
+      .stub('POST', '/aggregates')
+      .stub('POST', '/junk');
   });
 
-  it('sends accurate trade volumes to the API', () => process(apiStub.api)
+  it('sends accurate aggregations to the API', () => process(apiStub.api)
     .then(result => expect(result).toBe(true))
     .then(() => {
-      const volumes = apiStub.getDataPostedTo('/volume');
-      expect(volumes).toHaveProperty('BTC', 8);
-      expect(volumes).toHaveProperty('ETH', 3);
+      const aggregates = apiStub.getDataPostedTo('/aggregates');
+      expect(aggregates).toHaveProperty('search_changed', 2);
+      expect(aggregates).toHaveProperty('search_failed', 1);
     }));
 
-  it('sends invalid currencies to the API', () => process(apiStub.api)
+  it('sends invalid event ids to the API', () => process(apiStub.api)
     .then(result => expect(result).toBe(true))
     .then(() => {
-      const invalid = apiStub.getDataPostedTo('/invalid');
-      expect(invalid).toEqual(['DGE']);
+      const invalid = apiStub.getDataPostedTo('/junk');
+      expect(invalid).toEqual([4]);
     }));
 
-  it('dedupes invalid currencies before sending them to the API', () => {
-    apiStub.stub('GET', '/trades', [
-      { instrument: 'DGE', amount: 3 },
-      { instrument: 'TRX', amount: 6 },
-      { instrument: 'DGE', amount: 1 },
-    ])
-    return process(apiStub.api)
-      .then(result => expect(result).toBe(true))
-      .then(() => {
-        const invalid = apiStub.getDataPostedTo('/invalid');
-        expect(invalid.sort()).toEqual(['DGE', 'TRX'].sort());
-      });
-  });
-
-  it('resolves to false if the API call to get trades fails', () => {
-    apiStub.stub('GET', '/trades', null, 500);
+  it('resolves to false if the API call to get items', () => {
+    apiStub.stub('GET', '/items', null, 500);
     return process(apiStub.api)
       .then(result => expect(result).toBe(false))
   });
 
-  it('resolves to false if the API call to save volumes fails', () => {
-    apiStub.stub('POST', '/volume', null, 500);
+  it('resolves to false if the API call to save aggregates fails', () => {
+    apiStub.stub('POST', '/aggregates', null, 500);
     return process(apiStub.api)
       .then(result => expect(result).toBe(false))
   });
 
-  it('resolves to false if the API call to save invalid currencies fails', () => {
-    apiStub.stub('POST', '/invalid', null, 500);
+  it('resolves to false if the API call to save invalid events fails', () => {
+    apiStub.stub('POST', '/junk', null, 500);
     return process(apiStub.api)
       .then(result => expect(result).toBe(false))
   });
@@ -66,31 +52,30 @@ describe('trade processor', () => {
   if (!runExtensionTests) return;
 
   describe('with nested data', () => {
-    beforeEach(() => apiStub.stub('GET', '/trades', [
-      { instrument: 'BTC', amount: 2 },
+    beforeEach(() => apiStub.stub('GET', '/items', [
+      { name: 'search_changed', id: 1 },
       [
-        { instrument: 'BTC', amount: 6 },
+        { name: 'search_changed', id: 2 },
         [
-          { instrument: 'ETH', amount: 3 },
-        ],
-        { instrument: 'DGE', amount: 1 },
-      ],
-      { instrument: 'BTC', amount: 4 },
+          { name: 'search_failed', id: 3 },
+          { name: 'foobar', id: 4 },
+        ]
+      ]
     ]));
 
-    it('sends accurate trade volumes to the API', () => process(apiStub.api)
+    it('sends accurate aggregations to the API', () => process(apiStub.api)
       .then(result => expect(result).toBe(true))
       .then(() => {
-        const volumes = apiStub.getDataPostedTo('/volume');
-        expect(volumes).toHaveProperty('BTC', 12);
-        expect(volumes).toHaveProperty('ETH', 3);
+        const aggregates = apiStub.getDataPostedTo('/aggregates');
+        expect(aggregates).toHaveProperty('search_changed', 2);
+        expect(aggregates).toHaveProperty('search_failed', 1);
       }));
   
-    it('sends invalid currencies to the API', () => process(apiStub.api)
+    it('sends invalid events to the API', () => process(apiStub.api)
       .then(result => expect(result).toBe(true))
       .then(() => {
-        const invalid = apiStub.getDataPostedTo('/invalid');
-        expect(invalid).toEqual(['DGE']);
+        const invalid = apiStub.getDataPostedTo('/junk');
+        expect(invalid).toEqual([4]);
       }));
   });
 })
